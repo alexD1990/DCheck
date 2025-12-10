@@ -9,12 +9,8 @@ class DuplicateRowRule(Rule):
         unique_rows = df.dropDuplicates().count()
         duplicate_rows = total_rows - unique_rows
 
-        if duplicate_rows > 0:
-            status = "warning"
-            message = "Duplicate rows detected"
-        else:
-            status = "ok"
-            message = "No duplicate rows"
+        status = "ok"
+        message = "Duplicate rows detected" if duplicate_rows > 0 else "No duplicate rows"
 
         return RuleResult(
             name=self.name,

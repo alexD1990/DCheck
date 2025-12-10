@@ -70,8 +70,8 @@ def render_report(report: ValidationReport):
             uniq_pct = round((uniq / total_rows) * 100, 3) if total_rows else 0
 
             print("Total metrics:")
-            print(f"  - unique_rows    : {fmt(uniq)} ({fmt(uniq_pct, 3)}%)")
-            print(f"  - duplicate_rows : {fmt(dup)} ({fmt(dup_pct, 3)}%)")
+            print(f"  - unique_rows    : {fmt(uniq)} ({fmt(uniq_pct, 2)}%)")
+            print(f"  - duplicate_rows : {fmt(dup)} ({fmt(dup_pct, 2)}%)")
 
         # --------------------------------------------------
         # NULL + IQR — prosent av ALLE celler
@@ -83,7 +83,7 @@ def render_report(report: ValidationReport):
             pct = round((total_val / total_cells) * 100, 4) if total_cells else 0
 
             print("Total metrics:")
-            print(f"  - {total_key} : {fmt(total_val)} ({fmt(pct, 4)}% of all values)")
+            print(f"  - {total_key} : {fmt(total_val)} ({fmt(pct, 2)}% of all values)")
 
             if "per_column" in metrics and isinstance(metrics["per_column"], dict):
                 print()
@@ -91,7 +91,7 @@ def render_report(report: ValidationReport):
                 for col, col_metrics in metrics["per_column"].items():
                     val = col_metrics.get("nulls") or col_metrics.get("outliers", 0)
                     col_pct = round((val / total_cells) * 100, 4) if total_cells else 0
-                    print(f"  - {col} : {fmt(val)} ({fmt(col_pct, 4)}% of all values)")
+                    print(f"  - {col} : {fmt(val)} ({fmt(col_pct, 2)}% of all values)")
 
         # --------------------------------------------------
         # SMALL FILES — kun dataset-nivå
