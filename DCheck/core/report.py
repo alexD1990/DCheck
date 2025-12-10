@@ -36,6 +36,15 @@ def render_report(report: ValidationReport):
     status_count = {"ok": 0, "warning": 0, "error": 0}
     total_cells = report.rows * report.columns
 
+    def fmt(n, decimals=0):
+        try:
+            if isinstance(n, float):
+                return f"{n:,.{decimals}f}".replace(",", " ")
+            else:
+                return f"{int(n):,}".replace(",", " ")
+        except Exception:
+            return n
+
     for result in report.results:
         status = result.status.lower()
         if status not in status_count:
@@ -61,8 +70,8 @@ def render_report(report: ValidationReport):
             uniq_pct = round((uniq / total_rows) * 100, 3) if total_rows else 0
 
             print("Total metrics:")
-            print(f"  - unique_rows    : {int(uniq)} ({uniq_pct}%)")
-            print(f"  - duplicate_rows : {int(dup)} ({dup_pct}%)")
+            print(f"  - unique_rows    : {fmt(uniq)} ({fmt(uniq_pct, 3)}%)")
+            print(f"  - duplicate_rows : {fmt(dup)} ({fmt(dup_pct, 3)}%)")
 
         # --------------------------------------------------
         # NULL + IQR — prosent av ALLE celler
@@ -74,17 +83,15 @@ def render_report(report: ValidationReport):
             pct = round((total_val / total_cells) * 100, 4) if total_cells else 0
 
             print("Total metrics:")
-            print(f"  - {total_key} : {int(total_val)} ({pct}% of all values)")
+            print(f"  - {total_key} : {fmt(total_val)} ({fmt(pct, 4)}% of all values)")
 
-            # Per column — også prosent av ALLE celler
             if "per_column" in metrics and isinstance(metrics["per_column"], dict):
                 print()
                 print("Per column:")
                 for col, col_metrics in metrics["per_column"].items():
-                    # Støtter både nulls og outliers
                     val = col_metrics.get("nulls") or col_metrics.get("outliers", 0)
                     col_pct = round((val / total_cells) * 100, 4) if total_cells else 0
-                    print(f"  - {col} : {int(val)} ({col_pct}% of all values)")
+                    print(f"  - {col} : {fmt(val)} ({fmt(col_pct, 4)}% of all values)")
 
         # --------------------------------------------------
         # SMALL FILES — kun dataset-nivå
@@ -92,10 +99,7 @@ def render_report(report: ValidationReport):
         elif result.name == "small_files":
             print("Total metrics:")
             for key, value in metrics.items():
-                if isinstance(value, float):
-                    print(f"  - {key} : {round(value, 6)}")
-                else:
-                    print(f"  - {key} : {value}")
+                print(f"  - {key} : {fmt(value, 6)}")
 
         # --------------------------------------------------
         # FALLBACK — for fremtidige regler
@@ -104,10 +108,7 @@ def render_report(report: ValidationReport):
             print("Total metrics:")
             for key, value in metrics.items():
                 if key != "per_column":
-                    if isinstance(value, float):
-                        print(f"  - {key} : {round(value, 6)}")
-                    else:
-                        print(f"  - {key} : {value}")
+                    print(f"  - {key} : {fmt(value, 6)}")
 
         print()
         print("-" * 60)
@@ -115,9 +116,9 @@ def render_report(report: ValidationReport):
 
     print("=" * 60)
     print(
-        f"Summary: ok={status_count['ok']} | "
-        f"warning={status_count['warning']} | "
-        f"error={status_count['error']}"
+        f"Summary: "
+        f"ok={fmt(status_count['ok'])} | "
+        f"warning={fmt(status_count['warning'])} | "
+        f"error={fmt(status_count['error'])}"
     )
     print("=" * 60)
-
