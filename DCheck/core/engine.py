@@ -6,10 +6,10 @@ from DCheck.core.report import ValidationReport
 
 def run_engine(df, table_name=None):
     rules = [
+        SmallFileRule(table_name=table_name),
         DuplicateRowRule(),
         NullRatioRule(),
         IqrOutlierRule(),
-        SmallFileRule(table_name=table_name),
     ]
 
     report = ValidationReport(
