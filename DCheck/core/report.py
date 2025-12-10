@@ -34,37 +34,80 @@ def render_report(report: ValidationReport):
     print()
 
     status_count = {"ok": 0, "warning": 0, "error": 0}
+    total_cells = report.rows * report.columns
 
     for result in report.results:
         status = result.status.lower()
-        status_count[status] = status_count.get(status, 0) + 1
+        if status not in status_count:
+            status_count[status] = 0
+        status_count[status] += 1
 
         print(f"[RULE] {result.name}")
         print(f"Status : {result.status}")
         print(f"Message: {result.message}")
         print()
-        print("Total metrics:")
 
         metrics = result.metrics or {}
 
-        for key, value in metrics.items():
-            if key != "per_column":
+        # --------------------------------------------------
+        # DUPLICATE ROWS — prosent av hele datasettet
+        # --------------------------------------------------
+        if result.name == "duplicate_rows":
+            total_rows = report.rows
+            dup = metrics.get("duplicate_rows", 0)
+            uniq = metrics.get("unique_rows", 0)
+
+            dup_pct = round((dup / total_rows) * 100, 3) if total_rows else 0
+            uniq_pct = round((uniq / total_rows) * 100, 3) if total_rows else 0
+
+            print("Total metrics:")
+            print(f"  - unique_rows    : {int(uniq)} ({uniq_pct}%)")
+            print(f"  - duplicate_rows : {int(dup)} ({dup_pct}%)")
+
+        # --------------------------------------------------
+        # NULL + IQR — prosent av ALLE celler
+        # --------------------------------------------------
+        elif result.name in ("null_ratio", "iqr_outliers"):
+            total_key = "total_nulls" if result.name == "null_ratio" else "total_outliers"
+            total_val = metrics.get(total_key, 0)
+
+            pct = round((total_val / total_cells) * 100, 4) if total_cells else 0
+
+            print("Total metrics:")
+            print(f"  - {total_key} : {int(total_val)} ({pct}% of all values)")
+
+            # Per column — også prosent av ALLE celler
+            if "per_column" in metrics and isinstance(metrics["per_column"], dict):
+                print()
+                print("Per column:")
+                for col, col_metrics in metrics["per_column"].items():
+                    # Støtter både nulls og outliers
+                    val = col_metrics.get("nulls") or col_metrics.get("outliers", 0)
+                    col_pct = round((val / total_cells) * 100, 4) if total_cells else 0
+                    print(f"  - {col} : {int(val)} ({col_pct}% of all values)")
+
+        # --------------------------------------------------
+        # SMALL FILES — kun dataset-nivå
+        # --------------------------------------------------
+        elif result.name == "small_files":
+            print("Total metrics:")
+            for key, value in metrics.items():
                 if isinstance(value, float):
                     print(f"  - {key} : {round(value, 6)}")
                 else:
                     print(f"  - {key} : {value}")
 
-        if "per_column" in metrics and isinstance(metrics["per_column"], dict):
-            print()
-            print("Per column:")
-            for col, col_metrics in metrics["per_column"].items():
-                nulls = col_metrics.get("nulls")
-                ratio = col_metrics.get("ratio")
-
-                if nulls is not None and ratio is not None:
-                    print(f"  - {col} : {nulls} ({round(ratio * 100, 3)}%)")
-                else:
-                    print(f"  - {col} : {col_metrics}")
+        # --------------------------------------------------
+        # FALLBACK — for fremtidige regler
+        # --------------------------------------------------
+        else:
+            print("Total metrics:")
+            for key, value in metrics.items():
+                if key != "per_column":
+                    if isinstance(value, float):
+                        print(f"  - {key} : {round(value, 6)}")
+                    else:
+                        print(f"  - {key} : {value}")
 
         print()
         print("-" * 60)
@@ -77,3 +120,4 @@ def render_report(report: ValidationReport):
         f"error={status_count['error']}"
     )
     print("=" * 60)
+
