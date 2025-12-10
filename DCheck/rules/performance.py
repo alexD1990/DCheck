@@ -1,6 +1,6 @@
 from DCheck.rules.base import Rule
 from DCheck.core.report import RuleResult
-
+from pyspark.sql.functions import col
 
 class SmallFileRule(Rule):
     name = "small_files"
@@ -53,28 +53,47 @@ class SmallFileRule(Rule):
             message=message,
         )
 
-class IqrOutlierRule(Rule):
+
+class IqrOutlierRule:
     name = "iqr_outliers"
 
     def apply(self, df):
+        numeric_cols = [
+            c for c, t in df.dtypes
+            if t in ("int", "bigint", "double", "float")
+        ]
+
         total_outliers = 0
-        numeric_columns = [col for col, dtype in df.dtypes if dtype in ('int', 'double')]
+        per_column = {}
 
-        for col in numeric_columns:
-            q1, q3 = df.approxQuantile(col, [0.25, 0.75], 0.01)
+        for c in numeric_cols:
+            q1, q3 = df.approxQuantile(c, [0.25, 0.75], 0.01)
+
+            if q1 is None or q3 is None:
+                continue
+
             iqr = q3 - q1
-            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+            lower = q1 - 1.5 * iqr
+            upper = q3 + 1.5 * iqr
 
-            outliers = df.filter((df[col] < lower) | (df[col] > upper)).count()
-            total_outliers += outliers
+            cnt = df.filter((col(c) < lower) | (col(c) > upper)).count()
 
-        outlier_ratio = total_outliers / df.count()
-        status = "warning" if total_outliers > 0 else "ok"
-        message = "IQR outliers detected" if status == "warning" else "No IQR outliers detected"
+            if cnt > 0:
+                per_column[c] = {"outliers": cnt}
+                total_outliers += cnt
+
+        metrics = {
+            "total_outliers": total_outliers,
+            "per_column": per_column,
+        }
+
+        status = "ok"
+        message = "Outlier values detected (IQR)"
 
         return RuleResult(
             name=self.name,
             status=status,
-            metrics={"total_outliers": float(total_outliers), "outlier_ratio": outlier_ratio},
+            metrics=metrics,
             message=message,
         )
+
