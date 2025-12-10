@@ -24,7 +24,7 @@ class ValidationReport:
             "errors": sum(r.status == "error" for r in self.results),
         }
 
-def render_report(report: ValidationReport):
+def render_report(report: ValidationReport, show_summary: bool = True):
     print("=" * 60)
     print("DCHECK REPORT")
     print(f"Rows    : {report.rows}")
@@ -114,11 +114,12 @@ def render_report(report: ValidationReport):
         print("-" * 60)
         print()
 
-    print("=" * 60)
-    print(
-        f"Summary: "
-        f"ok={fmt(status_count['ok'])} | "
-        f"warning={fmt(status_count['warning'])} | "
-        f"error={fmt(status_count['error'])}"
-    )
-    print("=" * 60)
+    if show_summary:
+        print("=" * 60)
+        print(
+            f"Summary: "
+            f"ok={fmt(status_count['ok'])} | "
+            f"warning={fmt(status_count['warning'])} | "
+            f"error={fmt(status_count['error'])}"
+        )
+        print("=" * 60)

@@ -32,7 +32,8 @@ def run_engine(df, table_name=None):
                 columns=report.columns,
                 column_names=report.column_names,
                 results=report.results.copy()
-            )
+            ),
+            show_summary=False
         )
     except Exception:
         pass
