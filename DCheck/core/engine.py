@@ -1,6 +1,7 @@
 from DCheck.rules.structural import DuplicateRowRule
 from DCheck.rules.quality import NullRatioRule
-from DCheck.rules.performance import SmallFileRule, IqrOutlierRule
+from DCheck.rules.performance import SmallFileRule
+from DCheck.rules.skewness import SkewnessRule
 from DCheck.core.report import ValidationReport, RuleResult
 
 
@@ -10,17 +11,20 @@ def run_engine(
     preflight_only: bool = False,
     abort_on_preflight_warning: bool = False,
     abort_on_preflight_error: bool = True,
+    cache: bool = False,
 ):
-    rows = df.count()
+    # Build a report without triggering Spark actions yet
     report = ValidationReport(
-        rows=rows,
+        rows=0,  # set after (optional) caching/materialization
         columns=len(df.columns),
         column_names=df.columns,
     )
-    context = {"rows": rows, "table_name": table_name}
+
+    # Context gets enriched after we know rows
+    context = {"table_name": table_name}
 
     # =========================================
-    # PRE-FLIGHT: PERFORMANCE 
+    # PRE-FLIGHT: PERFORMANCE (metadata-based)
     # =========================================
     preflight_rules = [
         SmallFileRule(table_name=table_name),
@@ -66,16 +70,32 @@ def run_engine(
         return report
 
     # =========================================
-    # CORE DATA CHECKS 
+    # CORE DATA CHECKS (scan-based)
     # =========================================
-    core_rules = [
-        DuplicateRowRule(),
-        NullRatioRule(),
-        IqrOutlierRule(),
-    ]
+    persisted = False
+    try:
+        if cache:
+            df = df.persist()
+            persisted = True
 
-    for rule in core_rules:
-        result = rule.apply(df, context=context)
-        report.results.append(result)
+        # Materialize once to avoid recompute across rules
+        rows = int(df.count())
+        report.rows = rows
+        context["rows"] = rows
 
-    return report
+        core_rules = [
+            DuplicateRowRule(),
+            NullRatioRule(),
+            # Erstatter IqrOutlierRule med den mye raskere SkewnessRule
+            SkewnessRule(threshold_stddev=5.0),
+        ]
+
+        for rule in core_rules:
+            result = rule.apply(df, context=context)
+            report.results.append(result)
+
+        return report
+
+    finally:
+        if persisted:
+            df.unpersist()

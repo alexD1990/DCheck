@@ -34,7 +34,7 @@ def test_preflight_only_returns_early():
     assert "small_files" in names
     assert "duplicate_rows" not in names
     assert "null_ratio" not in names
-    assert "iqr_outliers" not in names
+    assert "extreme_values" not in names  # Endret fra iqr_outliers
 
 def test_status_semantics_warning_when_issues_found():
     # Duplicate rows: identical rows
@@ -49,12 +49,14 @@ def test_status_semantics_warning_when_issues_found():
     nullr = next(r for r in report_nulls.results if r.name == "null_ratio")
     assert nullr.status.lower() == "warning"
 
-    # Outliers: simple numeric outlier
-    df_outliers = spark.createDataFrame([(1,), (2,), (3,), (9999,)], ["x"])
-    report_outliers = validate_spark(df_outliers)
-    iqr = next(r for r in report_outliers.results if r.name == "iqr_outliers")
+    # Extreme Values (Skewness): 
+    # Lager en serie med normale verdier (10) og en ekstrem (1000)
+    data = [(10.0,) for _ in range(50)] + [(1000.0,)]
+    df_skew = spark.createDataFrame(data, ["x"])
     
-    # Depending on approxQuantile behavior on tiny samples, this should typically warn.
-    # We assert strict dictionary structure, and allow ok/warning to avoid flakes on CI.
-    assert iqr.status.lower() in ("ok", "warning")
-    assert isinstance(iqr.metrics, dict)
+    report_skew = validate_spark(df_skew)
+    skew_rule = next(r for r in report_skew.results if r.name == "extreme_values")
+    
+    # Skal gi warning fordi 1000 er langt unna snittet
+    assert skew_rule.status.lower() == "warning"
+    assert isinstance(skew_rule.metrics, dict)
