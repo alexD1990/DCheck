@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Any, Dict, List
 
 @dataclass
 class RuleResult:
     name: str
     status: str
-    metrics: Dict[str, float]
+    metrics: Dict[str, Any]
     message: str
 
 @dataclass
@@ -14,6 +14,12 @@ class ValidationReport:
     columns: int
     column_names: List[str]
     results: List[RuleResult] = field(default_factory=list)
+
+    def has_warnings(self) -> bool:
+        return any((r.status or "").lower() == "warning" for r in self.results)
+
+    def has_errors(self) -> bool:
+        return any((r.status or "").lower() == "error" for r in self.results)
 
     def summary(self):
         return {
@@ -59,7 +65,7 @@ def render_report(report: ValidationReport, show_summary: bool = True):
         metrics = result.metrics or {}
 
         # --------------------------------------------------
-        # DUPLICATE ROWS — prosent av hele datasettet
+        # DUPLICATE ROWS 
         # --------------------------------------------------
         if result.name == "duplicate_rows":
             total_rows = report.rows
@@ -74,12 +80,13 @@ def render_report(report: ValidationReport, show_summary: bool = True):
             print(f"  - duplicate_rows : {fmt(dup)} ({fmt(dup_pct, 2)}%)")
 
         # --------------------------------------------------
-        # NULL + IQR — prosent av ALLE celler
+        # NULL + IQR
         # --------------------------------------------------
         elif result.name in ("null_ratio", "iqr_outliers"):
             total_key = "total_nulls" if result.name == "null_ratio" else "total_outliers"
             total_val = metrics.get(total_key, 0)
 
+            # Total uses total_cells (all values in dataset)
             pct = round((total_val / total_cells) * 100, 4) if total_cells else 0
 
             print("Total metrics:")
@@ -90,11 +97,11 @@ def render_report(report: ValidationReport, show_summary: bool = True):
                 print("Per column:")
                 for col, col_metrics in metrics["per_column"].items():
                     val = col_metrics.get("nulls") or col_metrics.get("outliers", 0)
-                    col_pct = round((val / total_cells) * 100, 4) if total_cells else 0
-                    print(f"  - {col} : {fmt(val)} ({fmt(col_pct, 2)}% of all values)")
+                    col_pct = round((val / report.rows) * 100, 4) if report.rows else 0
+                    print(f"  - {col} : {fmt(val)} ({fmt(col_pct, 2)}% of rows)")
 
         # --------------------------------------------------
-        # SMALL FILES — kun dataset-nivå
+        # SMALL FILES 
         # --------------------------------------------------
         elif result.name == "small_files":
             print("Total metrics:")
@@ -102,7 +109,7 @@ def render_report(report: ValidationReport, show_summary: bool = True):
                 print(f"  - {key} : {fmt(value, 6)}")
 
         # --------------------------------------------------
-        # FALLBACK — for fremtidige regler
+        # FALLBACK 
         # --------------------------------------------------
         else:
             print("Total metrics:")

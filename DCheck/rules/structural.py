@@ -4,12 +4,12 @@ from DCheck.core.report import RuleResult
 class DuplicateRowRule(Rule):
     name = "duplicate_rows"
 
-    def apply(self, df):
-        total_rows = df.count()
+    def apply(self, df, context=None):
+        total_rows = int((context or {}).get("rows") or df.count())
         unique_rows = df.dropDuplicates().count()
         duplicate_rows = total_rows - unique_rows
 
-        status = "ok"
+        status = "warning" if duplicate_rows > 0 else "ok"
         message = "Duplicate rows detected" if duplicate_rows > 0 else "No duplicate rows"
 
         return RuleResult(
