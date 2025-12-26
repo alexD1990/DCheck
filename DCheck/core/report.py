@@ -33,6 +33,7 @@ class ValidationReport:
     def __repr__(self):
         """
         Returns a concise summary string for notebook display.
+        Prevents large text dumps in Databricks/Jupyter.
         """
         s = self.summary()
         return (
@@ -52,9 +53,14 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def render_report(report: ValidationReport, verbose: bool = False):
+def render_report(report: ValidationReport, verbose: bool = False, print_header: bool = True):
     """
     Renders a CLI-friendly validation report with ANSI color coding and structured layout.
+    
+    Args:
+        report: The ValidationReport object.
+        verbose: If True, prints details even for passed (OK) rules.
+        print_header: If False, suppresses the top summary table (used for pre-flight checks).
     """
     
     # --- HELPER: DRAW BOX (Style 2A - Status embedded in Border) ---
@@ -88,30 +94,32 @@ def render_report(report: ValidationReport, verbose: bool = False):
     # ------------------------------------------------------
 
     # 1. SUMMARY HEADER
-    status_count = {"ok": 0, "warning": 0, "error": 0}
-    for r in report.results:
-        s = (r.status or "").lower()
-        if s in status_count: status_count[s] += 1
-    
-    def fmt(n, decimals=0):
-        try:
-            if isinstance(n, float):
-                return f"{n:,.{decimals}f}".replace(",", " ")
-            else:
-                return f"{int(n):,}".replace(",", " ")
-        except Exception:
-            return n
+    # Only print if requested (avoids printing "0 rows" during pre-flight)
+    if print_header:
+        status_count = {"ok": 0, "warning": 0, "error": 0}
+        for r in report.results:
+            s = (r.status or "").lower()
+            if s in status_count: status_count[s] += 1
+        
+        def fmt(n, decimals=0):
+            try:
+                if isinstance(n, float):
+                    return f"{n:,.{decimals}f}".replace(",", " ")
+                else:
+                    return f"{int(n):,}".replace(",", " ")
+            except Exception:
+                return n
 
-    err_str = f"{Colors.FAIL}{status_count['error']} Errors{Colors.ENDC}" if status_count['error'] > 0 else "0 Errors"
-    warn_str = f"{Colors.WARNING}{status_count['warning']} Warnings{Colors.ENDC}" if status_count['warning'] > 0 else "0 Warnings"
-    ok_str = f"{Colors.GREEN}{status_count['ok']} OK{Colors.ENDC}"
+        err_str = f"{Colors.FAIL}{status_count['error']} Errors{Colors.ENDC}" if status_count['error'] > 0 else "0 Errors"
+        warn_str = f"{Colors.WARNING}{status_count['warning']} Warnings{Colors.ENDC}" if status_count['warning'] > 0 else "0 Warnings"
+        ok_str = f"{Colors.GREEN}{status_count['ok']} OK{Colors.ENDC}"
 
-    print()
-    print(f"{Colors.BOLD}DCHECK REPORT{Colors.ENDC}")
-    # UPDATED LINE: Added 'x {report.columns} columns'
-    print(f"Dataset: {fmt(report.rows)} rows x {report.columns} columns | {err_str} | {warn_str} | {ok_str}")
-    print()
+        print()
+        print(f"{Colors.BOLD}DCHECK REPORT{Colors.ENDC}")
+        print(f"Dataset: {fmt(report.rows)} rows x {report.columns} columns | {err_str} | {warn_str} | {ok_str}")
+        print()
 
+    # 2. RENDER RESULTS
     # Sort: Run pre-flight checks (small_files) first
     results = list(report.results)
     preflight = [r for r in results if r.name == "small_files"]

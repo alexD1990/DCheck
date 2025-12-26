@@ -51,9 +51,12 @@ def check(
         if not render: return 
         
         print("\nRunning pre-flight check...")
-        # Render a temporary mini-report for the pre-flight result
+        
         mini_report = ValidationReport(rows=0, columns=0, column_names=[], results=[result])
-        render_report(mini_report, verbose=True)
+        
+        # NOTE: print_header=False prevents the "0 rows" summary from appearing during pre-flight
+        render_report(mini_report, verbose=True, print_header=False)
+        
         print("Proceeding with full data scan...")
 
     # 3. Execute Engine
