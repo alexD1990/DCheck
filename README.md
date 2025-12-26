@@ -19,9 +19,15 @@ The goal is not exhaustive validation, but fast feedback you can trust while wor
 ## Installation (Databricks)
 
 Install dcheck directly in your Databricks notebook:
+> **Databricks note:** Install with `--no-deps` to avoid pip upgrading `pyspark` and breaking the runtime.
 
 ```bash
-%pip install dcheck
+%pip install --no-deps dcheck
+dbutils.library.restartPython()
+```
+Installing from GitHub repo:
+```python
+%pip install --no-deps --no-cache-dir git+https://github.com/alexD1990/DCheck.git@main
 dbutils.library.restartPython()
 ```
 Restarting the Python kernel is required after installation.
