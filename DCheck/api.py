@@ -48,15 +48,20 @@ def check(
 
     # 2. Define Callback (Immediate UI Feedback)
     def _on_preflight(result):
-        if not render: return 
-        
+        if not render:
+            return
+
         print("\nRunning pre-flight check...")
-        
-        mini_report = ValidationReport(rows=0, columns=0, column_names=[], results=[result])
-        
-        # NOTE: print_header=False prevents the "0 rows" summary from appearing during pre-flight
+
+        mini_report = ValidationReport(
+            rows=1,
+            columns=max(1, len(df.columns)),
+            column_names=df.columns,
+            results=[result],
+        )
+
         render_report(mini_report, verbose=True, print_header=False)
-        
+
         print("Proceeding with full data scan...")
 
     # 3. Execute Engine
