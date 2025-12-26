@@ -4,14 +4,14 @@ import contextlib
 import pytest
 
 from pyspark.sql import SparkSession
-from DCheck.api import check
+from dcheck.api import check
 
 
 @pytest.fixture(scope="session")
 def spark():
     spark = (
         SparkSession.builder.master("local[*]")
-        .appName("DCheckTest")
+        .appName("dcheck-test")
         .getOrCreate()
     )
     yield spark

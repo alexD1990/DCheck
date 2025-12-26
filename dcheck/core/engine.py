@@ -1,9 +1,9 @@
 from typing import Optional, Callable
-from DCheck.rules.structural import DuplicateRowRule
-from DCheck.rules.quality import NullRatioRule
-from DCheck.rules.performance import SmallFileRule
-from DCheck.rules.skewness import SkewnessRule
-from DCheck.core.report import ValidationReport, RuleResult
+from dcheck.rules.structural import DuplicateRowRule
+from dcheck.rules.quality import NullRatioRule
+from dcheck.rules.performance import SmallFileRule
+from dcheck.rules.skewness import SkewnessRule
+from dcheck.core.report import ValidationReport, RuleResult
 
 def run_engine(
     df,
