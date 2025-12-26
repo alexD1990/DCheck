@@ -1,9 +1,9 @@
-# DCheck/api.py
+# dcheck/api.py
 from typing import Union, Optional
 from pyspark.sql import DataFrame, SparkSession
 
-from DCheck.core.engine import run_engine
-from DCheck.core.report import render_report, ValidationReport
+from dcheck.core.engine import run_engine
+from dcheck.core.report import render_report, ValidationReport
 
 
 def check(
@@ -12,7 +12,7 @@ def check(
     render: bool = True,
 ):
     """
-    Primary entry point for DCheck validation.
+    Primary entry point for dcheck validation.
 
     Usage:
       1. check("catalog.schema.table") -> Auto-loads table + runs metadata check.
@@ -90,3 +90,5 @@ def check(
         return None
 
     return report
+# Short ergonomic alias for notebooks
+dc = check

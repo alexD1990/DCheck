@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from typing import Optional, Dict, Any
 
-from DCheck.rules.base import Rule
-from DCheck.core.report import RuleResult
+from dcheck.rules.base import Rule
+from dcheck.core.report import RuleResult
 
 
 class SmallFileRule(Rule):

@@ -1,7 +1,7 @@
-from DCheck.rules.performance import SmallFileRule
+from dcheck.rules.performance import SmallFileRule
 from pyspark.sql import SparkSession
 
-spark = SparkSession.builder.master("local").appName("DCheckTest").getOrCreate()
+spark = SparkSession.builder.master("local").appName("dcheck-test").getOrCreate()
 
 def test_small_files_skips_without_table_name():
     df = spark.createDataFrame([(1,), (2,)], ["x"])
