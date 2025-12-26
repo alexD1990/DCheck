@@ -5,23 +5,37 @@ from pyspark.sql import functions as F
 class NullRatioRule(Rule):
     name = "null_ratio"
 
-    def apply(self, df):
-        rows = df.count()
-        total_nulls = sum(
-            df.select([F.count(F.when(F.col(c).isNull(), c)).alias(c) for c in df.columns]).first().asDict().values()
-        )
-        null_ratio = total_nulls / (rows * len(df.columns)) if rows > 0 else 0.0
+    def apply(self, df, context=None):
+        # Single pass aggregation: one Spark job, not one per column
+        if not df.columns:
+            return RuleResult(
+                name=self.name,
+                status="ok",
+                metrics={"total_nulls": 0, "per_column": {}},
+                message="No columns to check",
+            )
 
-        status = "warning" if null_ratio > 0.1 else "ok"
-        message = "High null ratio detected" if status == "warning" else "Null ratio within acceptable range"
+        agg_exprs = [
+            F.sum(F.when(F.col(c).isNull(), 1).otherwise(0)).alias(c)
+            for c in df.columns
+        ]
+        row = df.agg(*agg_exprs).collect()[0].asDict()
+
+        per_column = {c: {"nulls": int(v)} for c, v in row.items() if v and int(v) > 0}
+        total_nulls = int(sum(int(v) for v in row.values() if v is not None))
+
+        metrics = {
+            "total_nulls": total_nulls,
+            "per_column": per_column,
+        }
+
+        status = "warning" if total_nulls > 0 else "ok"
+        message = "Null values detected" if total_nulls > 0 else "No null values detected"
 
         return RuleResult(
             name=self.name,
             status=status,
-            metrics={
-                "rows": float(rows),
-                "total_nulls": float(total_nulls),
-                "null_ratio": float(null_ratio),
-            },
+            metrics=metrics,
             message=message,
         )
+
