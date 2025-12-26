@@ -30,6 +30,16 @@ class ValidationReport:
             "errors": sum(r.status == "error" for r in self.results),
         }
 
+    def __repr__(self):
+        """
+        Returns a concise summary string for notebook display.
+        """
+        s = self.summary()
+        return (
+            f"<ValidationReport: {s['rows']} rows | "
+            f"{s['errors']} Errors | {s['warnings']} Warnings>"
+        )
+
 # ANSI color codes for terminal/Databricks output
 class Colors:
     HEADER = '\033[95m'
