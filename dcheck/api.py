@@ -2,7 +2,8 @@
 from typing import Union, Optional
 from pyspark.sql import DataFrame, SparkSession
 
-from dcheck.core.engine import run_engine
+from dcheck.orchestrator.engine import run_orchestrator
+from dcheck.orchestrator.adapters import report_to_validation_report
 from dcheck.core.report import render_report, ValidationReport
 
 
@@ -10,6 +11,7 @@ def check(
     source: Union[str, DataFrame],
     table_name: Optional[str] = None,
     render: bool = True,
+    cache: bool = False,
 ):
     """
     Primary entry point for dcheck validation.
@@ -59,36 +61,55 @@ def check(
 
         print("\nRunning pre-flight check...")
 
+        # Convert single CheckResult -> old ValidationReport for rendering
         mini_report = ValidationReport(
             rows=1,
             columns=max(1, len(df.columns)),
             column_names=df.columns,
-            results=[result],
+            results=[],
         )
 
-        # NOTE: print_header=False suppresses the dataset summary for pre-flight
+        # Adapt result shape to RuleResult expected by renderer
+        # "core.small_files" -> "small_files"
+        name = result.check_id.split(".", 1)[1] if "." in result.check_id else result.check_id
+        mini_report.results.append(
+            # import locally to avoid circular import
+            __import__("dcheck.core.report", fromlist=["RuleResult"]).RuleResult(
+                name=name,
+                status=result.status,
+                metrics=result.metrics or {},
+                message=result.message,
+            )
+        )
+
+        # print_header=False suppresses the dataset summary for pre-flight
         render_report(mini_report, verbose=True, print_header=False)
 
         print("Proceeding with full data scan...")
 
-    # 3) Execute Engine
-    report = run_engine(
+    # 3) Execute Orchestrator
+    new_report = run_orchestrator(
         df,
         table_name=real_table_name,
+        modules=["core_quality"],
+        config={"cache": cache},
         on_preflight_done=_on_preflight,
     )
 
-    # 4) Render Final Report
+    # 4) Render Final Report (keep existing renderer)
+    old_report = report_to_validation_report(new_report)
+
     if render:
         # small_files should only be shown in pre-flight
         if preflight_ran:
-            report.results = [r for r in report.results if r.name != "small_files"]
+            old_report.results = [r for r in old_report.results if r.name != "small_files"]
 
-        render_report(report)
-
-        # Avoid Databricks/Jupyter printing the object's repr at the end of the cell
+        render_report(old_report)
         return None
 
-    return report
+    return old_report
+
+
 # Short ergonomic alias for notebooks
 dc = check
+
