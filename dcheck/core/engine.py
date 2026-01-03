@@ -1,9 +1,12 @@
+# dcheck/core/engine.py
+from __future__ import annotations
+
 from typing import Optional, Callable
-from dcheck.rules.structural import DuplicateRowRule
-from dcheck.rules.quality import NullRatioRule
-from dcheck.rules.performance import SmallFileRule
-from dcheck.rules.skewness import SkewnessRule
+
+from dcheck.orchestrator.engine import run_orchestrator
+from dcheck.orchestrator.adapters import report_to_validation_report
 from dcheck.core.report import ValidationReport, RuleResult
+
 
 def run_engine(
     df,
@@ -12,65 +15,26 @@ def run_engine(
     on_preflight_done: Optional[Callable[[RuleResult], None]] = None,
 ) -> ValidationReport:
     """
-    Core validation engine. Orchestrates the execution of rules.
-
-    Args:
-        df: Spark DataFrame to validate.
-        table_name: Name/Path of the table (required for metadata checks).
-        cache: Whether to persist the DataFrame in memory.
-        on_preflight_done: Callback function triggered after metadata checks completes.
+    Backwards-compatible wrapper.
     """
-    
-    # Initialize empty report
-    report = ValidationReport(
-        rows=0,
-        columns=len(df.columns),
-        column_names=df.columns,
+    # Convert old callback signature to new CheckResult callback
+    def _cb(new_result):
+        if on_preflight_done is None:
+            return
+        name = new_result.check_id.split(".", 1)[1] if "." in new_result.check_id else new_result.check_id
+        rr = RuleResult(
+            name=name,
+            status=new_result.status,
+            metrics=new_result.metrics or {},
+            message=new_result.message,
+        )
+        on_preflight_done(rr)
+
+    rep = run_orchestrator(
+        df,
+        table_name=table_name,
+        modules=["core"],
+        config={"cache": cache},
+        on_preflight_done=_cb,
     )
-
-    context = {"table_name": table_name}
-
-    # =========================================================
-    # PHASE 1: PRE-FLIGHT CHECKS (Metadata / Small Files)
-    # =========================================================
-    if table_name:
-        # Run metadata-based rules
-        sf_rule = SmallFileRule(table_name=table_name)
-        sf_result = sf_rule.apply(df, context=context)
-        
-        report.results.append(sf_result)
-
-        # Trigger callback for immediate UI feedback (if provided)
-        if on_preflight_done:
-            on_preflight_done(sf_result)
-
-    # =========================================================
-    # PHASE 2: CORE CHECKS (Full Data Scan)
-    # =========================================================
-    persisted = False
-    try:
-        if cache:
-            df = df.persist()
-            persisted = True
-
-        # Perform heavy count operation
-        rows = int(df.count())
-        report.rows = rows
-        context["rows"] = rows
-
-        core_rules = [
-            DuplicateRowRule(),
-            NullRatioRule(),
-            SkewnessRule(threshold_stddev=5.0),
-        ]
-
-        for rule in core_rules:
-            result = rule.apply(df, context=context)
-            report.results.append(result)
-
-        return report
-
-    finally:
-        # Ensure resources are released
-        if persisted:
-            df.unpersist()
+    return report_to_validation_report(rep)
