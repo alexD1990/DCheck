@@ -33,7 +33,7 @@ def run_engine(
     rep = run_orchestrator(
         df,
         table_name=table_name,
-        modules=["core"],
+        modules=["core_quality"],
         config={"cache": cache},
         on_preflight_done=_cb,
     )
