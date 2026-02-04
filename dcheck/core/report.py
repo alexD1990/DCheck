@@ -67,6 +67,9 @@ def render_report(report: ValidationReport, verbose: bool = False, print_header:
         elif status_l == "warning":
             c = Colors.WARNING
             lbl = "[WARNING]"
+        elif status_l == "skipped":
+            c = Colors.CYAN
+            lbl = "[SKIPPED]"
         else:
             c = Colors.GREEN
             lbl = "[OK]"
@@ -136,6 +139,9 @@ def render_report(report: ValidationReport, verbose: bool = False, print_header:
         # Collapse OK results unless verbose
         if status == "ok" and not verbose:
             print(f"{Colors.GREEN}[OK] {result.name}{Colors.ENDC}")
+            continue
+        if status == "skipped" and not verbose:
+            print(f"{Colors.CYAN}[SKIPPED] {result.name}{Colors.ENDC}")
             continue
 
         lines: List[str] = []
