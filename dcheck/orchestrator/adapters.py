@@ -58,7 +58,7 @@ def report_to_validation_report(r: NewReport) -> ValidationReport:
 
         raw_status = cr.status
         status = _normalize_status(raw_status)
-        raw_norm = (raw_status or "").strip().lower()
+        raw_norm = str(raw_status or "").strip().lower()
 
         message = cr.message or ""
         # If module emits invalid status, make it visible + normalize to error.
