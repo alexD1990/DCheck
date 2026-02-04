@@ -7,6 +7,9 @@ from dcheck.common.types import Report as NewReport, CheckResult as NewCheckResu
 from dcheck.core.report import ValidationReport, RuleResult
 
 
+_ALLOWED_STATUS = {"ok", "warning", "error", "skipped"}
+
+
 def _short_name(check_id: str) -> str:
     """
     Convert 'module.check' -> 'check'
@@ -15,10 +18,17 @@ def _short_name(check_id: str) -> str:
     return check_id.split(".", 1)[1] if "." in check_id else check_id
 
 
+def _normalize_status(raw) -> str:
+    s = str(raw or "").strip().lower()
+    return s if s in _ALLOWED_STATUS else "error"
+
+
 def report_to_validation_report(r: NewReport) -> ValidationReport:
     """
     Flatten module-isolated results into the existing ValidationReport
     so render_report/tests continue to work.
+
+    Also enforces global status domain at the adapter boundary.
     """
     flat: List[NewCheckResult] = r.all_results_flat()
 
@@ -46,15 +56,27 @@ def report_to_validation_report(r: NewReport) -> ValidationReport:
         if _short_name(cr.check_id) == "rowcount":
             continue
 
+        raw_status = cr.status
+        status = _normalize_status(raw_status)
+        raw_norm = (raw_status or "").strip().lower()
+
+        message = cr.message or ""
+        # If module emits invalid status, make it visible + normalize to error.
+        if raw_norm not in _ALLOWED_STATUS:
+            message = (
+                f"Invalid status '{raw_status}' from module '{cr.module_name}' "
+                f"(normalized to 'error'). "
+                + message
+            )
+
         vr.results.append(
             RuleResult(
                 name=_short_name(cr.check_id),
-                status=cr.status,
+                status=status,
                 metrics=cr.metrics or {},
-                message=cr.message or "",
+                message=message,
             )
         )
 
     return vr
-
 
