@@ -41,27 +41,26 @@ class ExecutionContext:
         if self._is_persisted or not self._should_cache_df():
             return
 
-        # If df doesn't support persist, do nothing.
         persist = getattr(self.df, "persist", None)
         if persist is None:
             return
 
-        storage_level_name = (self.config or {}).get("cache_storage_level", "MEMORY_AND_DISK")
+        storage_level_name = (self.config or {}).get(
+            "cache_storage_level", "MEMORY_AND_DISK"
+        )
 
-       try:
+        try:
             from pyspark import StorageLevel  # type: ignore
-            storage_level = getattr(StorageLevel, storage_level_name, StorageLevel.MEMORY_AND_DISK)
-            try:
-                persist(storage_level)
-            except Exception:
-                # Serverless or connector environments may reject persist/caching operations.
-                return
+            storage_level = getattr(
+                StorageLevel,
+                storage_level_name,
+                StorageLevel.MEMORY_AND_DISK,
+            )
+            persist(storage_level)
         except Exception:
-            try:
-                # Fall back to default persist() signature if StorageLevel import fails
-                persist()
-            except Exception:
-                return
+            # If persist fails (e.g., serverless not supporting cache),
+            # silently skip caching.
+            return
 
         self._is_persisted = True
 
