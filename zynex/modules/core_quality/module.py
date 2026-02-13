@@ -57,10 +57,12 @@ class CoreModule(DCheckModule):
 
         context = {"table_name": ctx.table_name, "rows": rows}
 
+        thr = float((ctx.config or {}).get("extreme_values_threshold_stddev", 5.0))
+
         rules = [
             DuplicateRowRule(),
             NullRatioRule(),
-            SkewnessRule(threshold_stddev=5.0),
+            SkewnessRule(threshold_stddev=thr),
         ]
 
         out: List[CheckResult] = []
