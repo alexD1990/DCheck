@@ -122,7 +122,7 @@ def render_report(report: ValidationReport, verbose: bool = False, print_header:
         ok_str = f"{Colors.GREEN}{status_count['ok']} OK{Colors.ENDC}"
 
         print()
-        print(f"{Colors.BOLD}DCHECK REPORT{Colors.ENDC}")
+        print(f"{Colors.BOLD}ZYNEX REPORT{Colors.ENDC}")
         print(f"Dataset: {fmt(report.rows)} rows x {report.columns} columns | {err_str} | {warn_str} | {ok_str}")
         print()
 
