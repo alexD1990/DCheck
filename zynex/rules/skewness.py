@@ -55,16 +55,30 @@ class SkewnessRule(Rule):
         for c in numeric_cols:
             c_min = row.get(f"{c}_min")
             c_max = row.get(f"{c}_max")
-            c_avg = row.get(f"{c}_avg") or 0
-            c_std = row.get(f"{c}_std") or 0
+
+            c_avg = row.get(f"{c}_avg")
+            c_std = row.get(f"{c}_std")
 
             # Skip columns with null stats (all-null) or constant values
-            if c_min is None or c_max is None or c_std == 0:
+            if c_min is None or c_max is None or c_std in (None, 0):
+                continue
+
+            # Coerce to float for stable math across DecimalType / numeric mixes
+            try:
+                f_min = float(c_min)
+                f_max = float(c_max)
+                f_avg = float(c_avg) if c_avg is not None else 0.0
+                f_std = float(c_std)
+            except Exception:
+                # If anything is non-numeric, skip the column rather than crashing the module
+                continue
+
+            if f_std == 0.0:
                 continue
 
             # Calculate Z-Scores (Distance from mean)
-            z_max = (c_max - c_avg) / c_std
-            z_min = (c_avg - c_min) / c_std
+            z_max = (f_max - f_avg) / f_std
+            z_min = (f_avg - f_min) / f_std
 
             if z_max > self.threshold or z_min > self.threshold:
                 # Cast to float for JSON-friendly metrics when possible
