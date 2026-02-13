@@ -48,13 +48,20 @@ class ExecutionContext:
 
         storage_level_name = (self.config or {}).get("cache_storage_level", "MEMORY_AND_DISK")
 
-        try:
+       try:
             from pyspark import StorageLevel  # type: ignore
             storage_level = getattr(StorageLevel, storage_level_name, StorageLevel.MEMORY_AND_DISK)
-            persist(storage_level)
+            try:
+                persist(storage_level)
+            except Exception:
+                # Serverless or connector environments may reject persist/caching operations.
+                return
         except Exception:
-            # Fall back to default persist() signature if StorageLevel import fails
-            persist()
+            try:
+                # Fall back to default persist() signature if StorageLevel import fails
+                persist()
+            except Exception:
+                return
 
         self._is_persisted = True
 
